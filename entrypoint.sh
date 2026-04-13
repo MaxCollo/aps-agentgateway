@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+# Note: v1.1.0+ supports route-level mcpAuthentication as the preferred config.
+# We use top-level authentication for backward compat across gateway versions.
 CONFIG_PATH="/tmp/config.yaml"
 
 if [ -n "$GATEWAY_CONFIG" ]; then
