@@ -1,8 +1,7 @@
 #!/bin/sh
 set -e
 
-# Note: v1.1.0+ supports route-level mcpAuthentication as the preferred config.
-# We use top-level authentication for backward compat across gateway versions.
+# Agentgateway v1.1.0 config format
 CONFIG_PATH="/tmp/config.yaml"
 
 if [ -n "$GATEWAY_CONFIG" ]; then
@@ -10,38 +9,25 @@ if [ -n "$GATEWAY_CONFIG" ]; then
 else
   LISTEN_PORT="${PORT:-8080}"
 
-  cat > "$CONFIG_PATH" <<EOF
-listeners:
-  - name: main
-    protocol: MCP
-    sse:
-      address: "0.0.0.0:${LISTEN_PORT}"
-    routes: []
-
-admin:
-  address: "0.0.0.0:15000"
-  healthRoute: true
-
-EOF
+  # Build config section
+  CONFIG_BLOCK="config:
+  adminAddr: 0.0.0.0:15000"
 
   if [ -n "$GATEWAY_TRACING_ENDPOINT" ]; then
-    cat >> "$CONFIG_PATH" <<EOF
-tracing:
-  endpoint: "${GATEWAY_TRACING_ENDPOINT}"
-
-EOF
+    CONFIG_BLOCK="${CONFIG_BLOCK}
+  tracing:
+    otlpEndpoint: ${GATEWAY_TRACING_ENDPOINT}"
   fi
 
-  if [ -n "$GATEWAY_JWT_ISSUER" ] && [ -n "$GATEWAY_JWT_AUDIENCE" ] && [ -n "$GATEWAY_JWT_JWKS_URL" ]; then
-    cat >> "$CONFIG_PATH" <<EOF
-authentication:
-  jwtAuth:
-    issuer: "${GATEWAY_JWT_ISSUER}"
-    audience: "${GATEWAY_JWT_AUDIENCE}"
-    jwksUrl: "${GATEWAY_JWT_JWKS_URL}"
-
+  # Build binds section (v1.1.0 format)
+  cat > "$CONFIG_PATH" <<EOF
+${CONFIG_BLOCK}
+binds:
+- port: ${LISTEN_PORT}
+  listeners:
+  - name: mcp-listener
+    routes: []
 EOF
-  fi
 fi
 
-exec /agentgateway --file "$CONFIG_PATH"
+exec /app/agentgateway --file "$CONFIG_PATH"
